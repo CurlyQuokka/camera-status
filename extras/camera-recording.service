@@ -1,0 +1,16 @@
+# <PASSWORD>, <IP_ADDRESS> and <PATH> has to be changed in ExecStart
+# then service can be enabled within systemd
+
+[Unit]
+Description=Camera recording
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/ffmpeg -progress pipe:5 -r 25 -analyzeduration 1000000 -probesize 1000000 -fflags +igndts -rtsp_transport tcp -loglevel warning -i "rtsp://admin:<PASSWORD>@<IP_ADDRESS>:554/cam/realmonitor?channel=1&subtype=0" -strict -2 -movflags +faststart -f segment -segment_atclocktime 1 -reset_timestamps 1 -strftime 1 -segment_list pipe:8 -segment_time 60 -acodec copy -vcodec copy -max_muxing_queue_size 1024 <PATH>/%%Y-%%m-%%dT%%H-%%M-%%S.mkv
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=600
+StartLimitBurst=200
+
+[Install]
+WantedBy=multi-user.target
