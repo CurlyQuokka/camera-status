@@ -3,8 +3,6 @@ package main
 // ToDo:
 // 1. Add logfile
 // 2. Parameters/config file
-// 3. Delete data when disk when running out of space
-// 4. Try to restart daemon when files are not up to date
 
 import (
 	"net/http"
