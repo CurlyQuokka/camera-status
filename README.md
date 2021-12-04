@@ -11,6 +11,6 @@ go build -o camera-status cmd/camera-status/main.go
 ## usage
 
 ```
-./camera-status <path_to_rec_directory> <http_port> <recording_daemon_name>
+./camera-status <http_port>
 ```
 
