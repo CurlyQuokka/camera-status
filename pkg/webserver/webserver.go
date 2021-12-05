@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/CurlyQuokka/camera-status/pkg/logger"
 	"github.com/CurlyQuokka/camera-status/pkg/utils"
 	"github.com/CurlyQuokka/camera-status/pkg/watcher"
 )
@@ -17,23 +18,26 @@ const (
 )
 
 type WebServer struct {
-	port  string
-	watch *watcher.Watcher
+	port   string
+	watch  *watcher.Watcher
+	logger *logger.Logger
 }
 
-func NewWebServer(port string, w *watcher.Watcher) *WebServer {
+func NewWebServer(port string, w *watcher.Watcher, log logger.Logger) *WebServer {
 	return &WebServer{
-		port:  port,
-		watch: w,
+		port:   port,
+		watch:  w,
+		logger: &log,
 	}
 }
 
 func (ws *WebServer) GetData(w http.ResponseWriter, req *http.Request) {
+	(*ws.logger).Info("HTTP request received")
 	latest, isDaemonActive, isUpToDate, isSpaceSufficient, space := ws.watch.CheckStatus()
-	writeHTML(isDaemonActive, isUpToDate, isSpaceSufficient, space, latest, w)
+	ws.writeHTML(isDaemonActive, isUpToDate, isSpaceSufficient, space, latest, w)
 }
 
-func writeHTML(isDaemonActive, isUpToDate, isSpaceSufficient bool, space float64, latest utils.FileList, w http.ResponseWriter) {
+func (ws *WebServer) writeHTML(isDaemonActive, isUpToDate, isSpaceSufficient bool, space float64, latest utils.FileList, w http.ResponseWriter) {
 	bgColor := red
 	status := statusBad
 
@@ -64,4 +68,5 @@ func writeHTML(isDaemonActive, isUpToDate, isSpaceSufficient bool, space float64
 	fmt.Fprintf(w, "</br>")
 	fmt.Fprintf(w, "Free space: <b>%.2f%%</b></br>", space*100)
 	fmt.Fprintf(w, "</body>")
+	(*ws.logger).Info("HTTP response created")
 }

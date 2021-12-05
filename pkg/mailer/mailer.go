@@ -1,8 +1,9 @@
 package mailer
 
 import (
-	"fmt"
 	"net/smtp"
+
+	"github.com/CurlyQuokka/camera-status/pkg/logger"
 )
 
 const (
@@ -16,15 +17,17 @@ type Mailer struct {
 	secToken string
 	smtpHost string
 	smtpPort string
+	logger   *logger.Logger
 }
 
-func NewMailer(from, to, securityToken, smtpSrv, smtpSrvPort string) *Mailer {
+func NewMailer(from, to, securityToken, smtpSrv, smtpSrvPort string, log logger.Logger) *Mailer {
 	return &Mailer{
 		sender:   from,
 		receiver: to,
 		secToken: securityToken,
 		smtpHost: smtpSrv,
 		smtpPort: smtpSrvPort,
+		logger:   &log,
 	}
 }
 
@@ -40,8 +43,10 @@ func (m *Mailer) SendMail(subject, message string) error {
 
 	err := smtp.SendMail(m.smtpHost+":"+m.smtpPort, auth, m.sender, toSlice, msg)
 	if err != nil {
-		fmt.Println(err)
+		(*m.logger).Error(err.Error())
 		return err
 	}
+	infoMsg := "Sent message: " + message
+	(*m.logger).Info(infoMsg)
 	return nil
 }

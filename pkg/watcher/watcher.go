@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CurlyQuokka/camera-status/pkg/logger"
 	"github.com/CurlyQuokka/camera-status/pkg/mailer"
 	"github.com/CurlyQuokka/camera-status/pkg/utils"
 )
 
 const (
 	defaultRecDaemon = "camera-recording"
-	defaultRecDir    = "/home/user/camera-disk"
+	defaultRecDir    = ""
 
 	defaultCheckInterval = 10
 	numOfFilesPerDay     = 1440
@@ -22,19 +23,21 @@ type Watcher struct {
 	Path                string
 	RecordingDaemon     string
 	mailer              *mailer.Mailer
+	logger              *logger.Logger
 }
 
-func NewDefaultWatcher(m *mailer.Mailer) *Watcher {
-	return NewCustomWatcher(defaultCheckInterval, defaultRecDir, defaultRecDaemon, m)
+func NewDefaultWatcher(m *mailer.Mailer, log logger.Logger) *Watcher {
+	return NewCustomWatcher(defaultCheckInterval, defaultRecDir, defaultRecDaemon, m, log)
 }
 
-func NewCustomWatcher(statusInterval int, directory, recordingDaemon string, mail *mailer.Mailer) *Watcher {
+func NewCustomWatcher(statusInterval int, directory, recordingDaemon string, mail *mailer.Mailer, log logger.Logger) *Watcher {
 	w := &Watcher{
 		StatusCheckInterval: statusInterval,
 		StatusSlice:         []bool{},
 		Path:                directory,
 		RecordingDaemon:     recordingDaemon,
 		mailer:              mail,
+		logger:              &log,
 	}
 	return w
 }
@@ -45,24 +48,24 @@ func (w *Watcher) Watch(finished chan bool) {
 		_, isDaemonActive, isUpToDate, isSpaceSufficient, space := w.CheckStatusAndUpdate()
 
 		if !isDaemonActive || !isUpToDate {
-			fmt.Println("Daemon will be restarted")
+			(*w.logger).Info("Daemon will be restarted")
 			err := utils.RestartDaemon(w.RecordingDaemon)
 			if err != nil {
-				fmt.Println(err.Error())
+				(*w.logger).Error(err.Error())
 			} else {
-				fmt.Println("Daemon successfully restarted")
+				(*w.logger).Info("Daemon successfully restarted")
 			}
 			time.Sleep(time.Duration(w.StatusCheckInterval) * time.Second)
 			_, isDaemonActive, isUpToDate, isSpaceSufficient, space = w.CheckStatusAndUpdate()
 		}
 
 		if !isSpaceSufficient {
-			fmt.Println("Will remove files now")
+			(*w.logger).Error("Insufficient space")
 			err := utils.RemoveFiles(w.Path, numOfFilesPerDay/2)
 			if err != nil {
-				fmt.Println(err.Error())
+				(*w.logger).Error(err.Error())
 			} else {
-				fmt.Printf("Removed %d files", numOfFilesPerDay/2)
+				(*w.logger).Info(fmt.Sprintf("Removed %d files", numOfFilesPerDay/2))
 				_, isDaemonActive, isUpToDate, isSpaceSufficient, space = w.CheckStatusAndUpdate()
 			}
 		}
@@ -84,16 +87,18 @@ func (w *Watcher) Watch(finished chan bool) {
 				}
 				err := w.mailer.SendMail(mailer.ErrSubject, errorMsg)
 				if err != nil {
-					fmt.Println(err.Error())
+					(*w.logger).Error(err.Error())
+				} else {
+					(*w.logger).Info(fmt.Sprintf("Sent error mail. lastStatusLen: %d currentStatusLen: %d\n", lastStatusLen, currentStatusLen))
 				}
-				fmt.Println(errorMsg)
-				fmt.Printf("Send error mail. lastStatusLen: %d currentStatusLen: %d\n", lastStatusLen, currentStatusLen)
+				(*w.logger).Info(errorMsg)
 			} else {
 				err := w.mailer.SendMail(mailer.OkSubject, "Everything is OK!\r\n")
 				if err != nil {
-					fmt.Println(err.Error())
+					(*w.logger).Error(err.Error())
+				} else {
+					(*w.logger).Info(fmt.Sprintf("Sent OK mail. lastStatusLen: %d currentStatusLen: %d\n", lastStatusLen, currentStatusLen))
 				}
-				fmt.Printf("Send ok mail. lastStatusLen: %d currentStatusLen: %d\n", lastStatusLen, currentStatusLen)
 			}
 		}
 
@@ -118,10 +123,14 @@ func (w *Watcher) CheckStatus() (utils.FileList, bool, bool, bool, float64) {
 	files := utils.ListFiles(w.Path)
 	files = files.Revert()
 	latest := files.GetLatest()
-	date := latest[0].ParseDate()
+
+	isUpToDate := false
+	if len(latest) > 0 {
+		date := latest[0].ParseDate()
+		isUpToDate = utils.IsUpToDate(date)
+	}
 
 	isDaemonActive := utils.IsDaemonActive(w.RecordingDaemon)
-	isUpToDate := utils.IsUpToDate(date)
 	space := utils.GetFsSpace(w.Path)
 	isSpaceSufficient := utils.IsSpaceSufficient(w.Path)
 

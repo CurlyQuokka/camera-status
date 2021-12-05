@@ -1,19 +1,17 @@
 package main
 
 // ToDo:
-// 1. Add logfile
-// 2. Parameters/config file
+// 1. Parameters/config file
 
 import (
 	"net/http"
 	"os"
 
+	"github.com/CurlyQuokka/camera-status/pkg/logger"
 	"github.com/CurlyQuokka/camera-status/pkg/mailer"
 	"github.com/CurlyQuokka/camera-status/pkg/watcher"
 	"github.com/CurlyQuokka/camera-status/pkg/webserver"
 )
-
-var watcherObj *watcher.Watcher
 
 const (
 	mailFrom = "@gmail.com"
@@ -25,6 +23,8 @@ const (
 )
 
 func main() {
+	loggerObj := logger.NewMyLogger()
+
 	var webServerObj *webserver.WebServer
 
 	var port string
@@ -34,16 +34,16 @@ func main() {
 		port = ":" + os.Args[1]
 	}
 
-	mailerObj := mailer.NewMailer(mailFrom, mailTo, mailPass, smtpHost, smtpPort)
-	watcherObj = watcher.NewDefaultWatcher(mailerObj)
-	webServerObj = webserver.NewWebServer(port, watcherObj)
+	mailerObj := mailer.NewMailer(mailFrom, mailTo, mailPass, smtpHost, smtpPort, loggerObj)
+	watcherObj := watcher.NewDefaultWatcher(mailerObj, loggerObj)
+	webServerObj = webserver.NewWebServer(port, watcherObj, loggerObj)
 
 	finished := make(chan bool)
 
 	go watcherObj.Watch(finished)
 
+	loggerObj.Info("HTTP webserver will start at port " + port)
 	http.HandleFunc("/", webServerObj.GetData)
-
 	http.ListenAndServe(port, nil)
 
 	<-finished

@@ -73,6 +73,9 @@ func (list FileList) Print() {
 }
 
 func (list FileList) GetLatest() FileList {
+	if len(list) < 4 {
+		return list
+	}
 	return list[:3]
 }
 
