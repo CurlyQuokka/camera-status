@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	mailFrom = "@gmail.com"
-	mailTo   = "@gmail.com"
+	mailFrom = ""
+	mailTo   = ""
 	mailPass = ""
 
 	smtpHost = "smtp.gmail.com"
@@ -38,6 +38,7 @@ func main() {
 	watcherObj := watcher.NewDefaultWatcher(mailerObj, loggerObj)
 	webServerObj = webserver.NewWebServer(port, watcherObj, loggerObj)
 
+	// unused as this will never be exited
 	finished := make(chan bool)
 
 	go watcherObj.Watch(finished)
@@ -46,5 +47,6 @@ func main() {
 	http.HandleFunc("/", webServerObj.GetData)
 	http.ListenAndServe(port, nil)
 
+	// just for infinite loop
 	<-finished
 }

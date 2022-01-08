@@ -41,6 +41,8 @@ func (m *Mailer) SendMail(subject, message string) error {
 
 	toSlice := []string{m.receiver}
 
+	(*m.logger).Info("Will send message: " + subject)
+
 	err := smtp.SendMail(m.smtpHost+":"+m.smtpPort, auth, m.sender, toSlice, msg)
 	if err != nil {
 		(*m.logger).Error(err.Error())
